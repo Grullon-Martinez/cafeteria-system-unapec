@@ -34,38 +34,66 @@ export const Proveedores: React.FC = () => {
     }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingItem) {
-      setProveedores(prev => prev.map(item => 
-        item.id === editingItem.id 
+  // 🔹 Agrega esta función al inicio del archivo o justo antes del handleSubmit
+function validarRNC(rnc: string): boolean {
+  const soloNumeros = rnc.replace(/-/g, '');
+  if (!/^\d{9}$/.test(soloNumeros)) return false; // El RNC debe tener 9 dígitos
+
+  const pesos = [7, 9, 8, 6, 5, 4, 3, 2];
+  let suma = 0;
+
+  for (let i = 0; i < 8; i++) {
+    suma += parseInt(soloNumeros[i]) * pesos[i];
+  }
+
+  const resto = suma % 11;
+  let digitoVerificador = 0;
+
+  if (resto === 0) digitoVerificador = 2;
+  else if (resto === 1) digitoVerificador = 1;
+  else digitoVerificador = 11 - resto;
+
+  return digitoVerificador === parseInt(soloNumeros[8]);
+}
+
+// 🔹 Ahora, modifica tu handleSubmit así:
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // ✅ Validación del RNC antes de guardar
+  if (!validarRNC(formData.rnc)) {
+    alert("❌ El RNC ingresado no es válido.");
+    return; // Detiene el envío si el RNC no pasa la validación
+  }
+
+  if (editingItem) {
+    setProveedores(prev =>
+      prev.map(item =>
+        item.id === editingItem.id
           ? { ...item, ...formData }
           : item
-      ));
-    } else {
-      const newItem: Proveedor = {
-        id: Math.max(...proveedores.map(p => p.id)) + 1,
-        ...formData
-      };
-      setProveedores(prev => [...prev, newItem]);
-    }
-    
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setFormData({ nombreComercial: '', rnc: '', fechaRegistro: '', estado: true });
-  };
+      )
+    );
+  } else {
+    const newItem: Proveedor = {
+      id: Math.max(...proveedores.map(p => p.id)) + 1,
+      ...formData
+    };
+    setProveedores(prev => [...prev, newItem]);
+  }
 
-  const handleEdit = (item: Proveedor) => {
-    setEditingItem(item);
-    setFormData({
-      nombreComercial: item.nombreComercial,
-      rnc: item.rnc,
-      fechaRegistro: item.fechaRegistro,
-      estado: item.estado
-    });
-    setIsModalOpen(true);
-  };
+  // Limpiar y cerrar
+  setIsModalOpen(false);
+  setEditingItem(null);
+  setFormData({
+    nombre: '',
+    rnc: '',
+    telefono: '',
+    direccion: '',
+    estado: true
+  });
+};
+
 
   const handleDelete = (item: Proveedor) => {
     if (confirm('¿Está seguro de que desea eliminar este proveedor?')) {

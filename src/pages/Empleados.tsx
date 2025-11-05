@@ -42,34 +42,64 @@ export const Empleados: React.FC = () => {
     }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingItem) {
-      setEmpleados(prev => prev.map(item => 
-        item.id === editingItem.id 
+  // 🔹 Primero, agrega estas funciones al inicio del archivo (antes del componente o dentro de él)
+
+// Función para validar la cédula dominicana
+function validarCedula(cedula: string): boolean {
+  const soloNumeros = cedula.replace(/-/g, '');
+  if (!/^\d{11}$/.test(soloNumeros)) return false;
+
+  const multiplicadores = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1];
+  let suma = 0;
+
+  for (let i = 0; i < 10; i++) {
+    let producto = parseInt(soloNumeros[i]) * multiplicadores[i];
+    if (producto > 9) producto = Math.floor(producto / 10) + (producto % 10);
+    suma += producto;
+  }
+
+  const digitoVerificador = (10 - (suma % 10)) % 10;
+  return digitoVerificador === parseInt(soloNumeros[10]);
+}
+
+// 🔹 Luego, tu handleSubmit modificado:
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // ✅ Validación de la cédula
+  if (!validarCedula(formData.cedula)) {
+    alert("❌ La cédula ingresada no es válida.");
+    return; // detiene el proceso si la cédula no pasa
+  }
+
+  if (editingItem) {
+    setEmpleados(prev =>
+      prev.map(item =>
+        item.id === editingItem.id
           ? { ...item, ...formData }
           : item
-      ));
-    } else {
-      const newItem: Empleado = {
-        id: Math.max(...empleados.map(e => e.id)) + 1,
-        ...formData
-      };
-      setEmpleados(prev => [...prev, newItem]);
-    }
-    
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setFormData({
-      nombre: '',
-      cedula: '',
-      tandaLabor: '',
-      porcientoComision: 0,
-      fechaIngreso: '',
-      estado: true
-    });
-  };
+      )
+    );
+  } else {
+    const newItem: Empleado = {
+      id: Math.max(...empleados.map(e => e.id)) + 1,
+      ...formData
+    };
+    setEmpleados(prev => [...prev, newItem]);
+  }
+
+  // limpiar y cerrar
+  setIsModalOpen(false);
+  setEditingItem(null);
+  setFormData({
+    nombre: '',
+    cedula: '',
+    tandaLabor: '',
+    porcientoComision: 0,
+    fechaIngreso: '',
+    estado: true
+  });
+};
 
   const handleEdit = (item: Empleado) => {
     setEditingItem(item);

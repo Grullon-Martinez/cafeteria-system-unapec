@@ -49,34 +49,63 @@ export const Usuarios: React.FC = () => {
     }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingItem) {
-      setUsuarios(prev => prev.map(item => 
-        item.id === editingItem.id 
+  // 🔹 Agrega esta función arriba del handleSubmit (o al inicio del archivo)
+function validarCedula(cedula: string): boolean {
+  const soloNumeros = cedula.replace(/-/g, '');
+  if (!/^\d{11}$/.test(soloNumeros)) return false;
+
+  const multiplicadores = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1];
+  let suma = 0;
+
+  for (let i = 0; i < 10; i++) {
+    let producto = parseInt(soloNumeros[i]) * multiplicadores[i];
+    if (producto > 9) producto = Math.floor(producto / 10) + (producto % 10);
+    suma += producto;
+  }
+
+  const digitoVerificador = (10 - (suma % 10)) % 10;
+  return digitoVerificador === parseInt(soloNumeros[10]);
+}
+
+// 🔹 Luego, tu función handleSubmit (ya modificada con la validación)
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // ✅ Validación de cédula antes de enviar
+  if (!validarCedula(formData.cedula)) {
+    alert("❌ La cédula ingresada no es válida.");
+    return; // Detiene el proceso si la cédula no pasa
+  }
+
+  if (editingItem) {
+    setUsuarios(prev =>
+      prev.map(item =>
+        item.id === editingItem.id
           ? { ...item, ...formData }
           : item
-      ));
-    } else {
-      const newItem: Usuario = {
-        id: Math.max(...usuarios.map(u => u.id)) + 1,
-        ...formData
-      };
-      setUsuarios(prev => [...prev, newItem]);
-    }
-    
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setFormData({
-      nombre: '',
-      cedula: '',
-      tipoUsuarioId: 0,
-      limiteCredito: 0,
-      fechaRegistro: '',
-      estado: true
-    });
-  };
+      )
+    );
+  } else {
+    const newItem: Usuario = {
+      id: Math.max(...usuarios.map(u => u.id)) + 1,
+      ...formData
+    };
+    setUsuarios(prev => [...prev, newItem]);
+  }
+
+  // Limpiar formulario y cerrar modal
+  setIsModalOpen(false);
+  setEditingItem(null);
+  setFormData({
+    nombre: '',
+    usuario: '',
+    password: '',
+    rol: '',
+    cedula: '', // asegúrate de tener este campo en tu formData
+    estado: true
+  });
+};
+
 
   const handleEdit = (item: Usuario) => {
     setEditingItem(item);
