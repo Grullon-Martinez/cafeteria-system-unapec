@@ -98,14 +98,13 @@ const handleSubmit = (e: React.FormEvent) => {
   setEditingItem(null);
   setFormData({
     nombre: '',
-    usuario: '',
-    password: '',
-    rol: '',
-    cedula: '', // asegúrate de tener este campo en tu formData
+    cedula: '',
+    tipoUsuarioId: 0,
+    limiteCredito: 0,
+    fechaRegistro: '',
     estado: true
   });
-};
-
+  };
 
   const handleEdit = (item: Usuario) => {
     setEditingItem(item);
