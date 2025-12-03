@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Table } from '../components/Common/Table';
 import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { FacturaArticulo } from '../types';
-import { mockFacturaArticulos, mockFacturas, mockArticulos } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const FacturaArticulos: React.FC = () => {
-  const [facturaArticulos, setFacturaArticulos] = useState<FacturaArticulo[]>(mockFacturaArticulos);
+  const { facturaArticulos, facturas, articulos, addFacturaArticulo, updateFacturaArticulo, deleteFacturaArticulo } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FacturaArticulo | null>(null);
   const [formData, setFormData] = useState({
@@ -16,6 +16,17 @@ export const FacturaArticulos: React.FC = () => {
     monto: 0,
     unidadesVendidas: 0
   });
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (formData.articuloId > 0 && formData.unidadesVendidas > 0) {
+      const articulo = articulos.find(a => a.id === formData.articuloId);
+      if (articulo) {
+        const montoCalculado = articulo.costo * formData.unidadesVendidas;
+        setFormData(prev => ({ ...prev, monto: montoCalculado }));
+      }
+    }
+  }, [formData.articuloId, formData.unidadesVendidas, articulos]);
 
   const columns = [
     { key: 'id', label: 'ID' },
@@ -28,7 +39,7 @@ export const FacturaArticulos: React.FC = () => {
       key: 'articuloId', 
       label: 'Artículo',
       render: (value: number) => {
-        const articulo = mockArticulos.find(a => a.id === value);
+        const articulo = articulos.find(a => a.id === value);
         return articulo ? articulo.descripcion : 'N/A';
       }
     },
@@ -42,19 +53,40 @@ export const FacturaArticulos: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setError('');
+
+    const articulo = articulos.find(a => a.id === formData.articuloId);
+    if (!articulo) {
+      setError('Artículo no encontrado');
+      return;
+    }
+
     if (editingItem) {
-      setFacturaArticulos(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      const oldUnidades = editingItem.unidadesVendidas;
+      const newUnidades = formData.unidadesVendidas;
+      const articuloActual = articulos.find(a => a.id === (formData.articuloId !== editingItem.articuloId ? formData.articuloId : editingItem.articuloId));
+      
+      if (formData.articuloId !== editingItem.articuloId) {
+        if (articuloActual && articuloActual.existencia < newUnidades) {
+          setError(`No hay suficiente inventario. Disponible: ${articuloActual.existencia}`);
+          return;
+        }
+      } else {
+        const diferencia = newUnidades - oldUnidades;
+        if (diferencia > 0 && articuloActual && articuloActual.existencia < diferencia) {
+          setError(`No hay suficiente inventario. Disponible: ${articuloActual.existencia}`);
+          return;
+        }
+      }
+
+      updateFacturaArticulo(editingItem.id, formData);
     } else {
-      const newItem: FacturaArticulo = {
-        id: Math.max(...facturaArticulos.map(fa => fa.id)) + 1,
-        ...formData
-      };
-      setFacturaArticulos(prev => [...prev, newItem]);
+      if (articulo.existencia < formData.unidadesVendidas) {
+        setError(`No hay suficiente inventario. Disponible: ${articulo.existencia}`);
+        return;
+      }
+
+      addFacturaArticulo(formData);
     }
     
     setIsModalOpen(false);
@@ -79,8 +111,8 @@ export const FacturaArticulos: React.FC = () => {
   };
 
   const handleDelete = (item: FacturaArticulo) => {
-    if (confirm('¿Está seguro de que desea eliminar este detalle de factura?')) {
-      setFacturaArticulos(prev => prev.filter(fa => fa.id !== item.id));
+    if (confirm('¿Está seguro de que desea eliminar este detalle de factura? El inventario se restaurará automáticamente.')) {
+      deleteFacturaArticulo(item.id);
     }
   };
 
@@ -134,7 +166,7 @@ export const FacturaArticulos: React.FC = () => {
                 required
               >
                 <option value="">Seleccionar Factura</option>
-                {mockFacturas.filter(f => f.estado).map(factura => (
+                {facturas.filter(f => f.estado).map(factura => (
                   <option key={factura.id} value={factura.id}>
                     Factura #{factura.id} - {factura.fechaVenta}
                   </option>
@@ -148,14 +180,18 @@ export const FacturaArticulos: React.FC = () => {
               </label>
               <select
                 value={formData.articuloId}
-                onChange={(e) => setFormData(prev => ({ ...prev, articuloId: parseInt(e.target.value) }))}
+                onChange={(e) => {
+                  const articuloId = parseInt(e.target.value);
+                  setFormData(prev => ({ ...prev, articuloId, monto: 0 }));
+                  setError('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Seleccionar Artículo</option>
-                {mockArticulos.filter(a => a.estado).map(articulo => (
+                {articulos.filter(a => a.estado).map(articulo => (
                   <option key={articulo.id} value={articulo.id}>
-                    {articulo.descripcion} - RD$ {articulo.costo.toFixed(2)}
+                    {articulo.descripcion} - RD$ {articulo.costo.toFixed(2)} (Disponible: {articulo.existencia})
                   </option>
                 ))}
               </select>
@@ -185,13 +221,29 @@ export const FacturaArticulos: React.FC = () => {
               <input
                 type="number"
                 value={formData.unidadesVendidas}
-                onChange={(e) => setFormData(prev => ({ ...prev, unidadesVendidas: parseInt(e.target.value) }))}
+                onChange={(e) => {
+                  const unidades = parseInt(e.target.value) || 0;
+                  setFormData(prev => ({ ...prev, unidadesVendidas: unidades }));
+                  setError('');
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="1"
+                max={formData.articuloId > 0 ? articulos.find(a => a.id === formData.articuloId)?.existencia || 0 : undefined}
                 required
               />
+              {formData.articuloId > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Disponible: {articulos.find(a => a.id === formData.articuloId)?.existencia || 0} unidades
+                </p>
+              )}
             </div>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button type="submit" className="flex-1">

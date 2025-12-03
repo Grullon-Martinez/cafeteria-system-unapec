@@ -13,6 +13,7 @@ interface TableProps {
   onEdit?: (item: any) => void;
   onDelete?: (item: any) => void;
   onView?: (item: any) => void;
+  customActions?: (item: any) => React.ReactNode;
 }
 
 export const Table: React.FC<TableProps> = ({ 
@@ -20,7 +21,8 @@ export const Table: React.FC<TableProps> = ({
   data, 
   onEdit, 
   onDelete, 
-  onView 
+  onView,
+  customActions
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -36,7 +38,7 @@ export const Table: React.FC<TableProps> = ({
                   {column.label}
                 </th>
               ))}
-              {(onEdit || onDelete || onView) && (
+              {(onEdit || onDelete || onView || customActions) && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acciones
                 </th>
@@ -54,7 +56,7 @@ export const Table: React.FC<TableProps> = ({
                     }
                   </td>
                 ))}
-                {(onEdit || onDelete || onView) && (
+                {(onEdit || onDelete || onView || customActions) && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                       {onView && (
@@ -81,6 +83,7 @@ export const Table: React.FC<TableProps> = ({
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
+                      {customActions && customActions(item)}
                     </div>
                   </td>
                 )}

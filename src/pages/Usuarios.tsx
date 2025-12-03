@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Usuario } from '../types';
-import { mockUsuarios, mockTiposUsuario } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Usuarios: React.FC = () => {
-  const [usuarios, setUsuarios] = useState<Usuario[]>(mockUsuarios);
+  const { usuarios, tiposUsuario, updateUsuario, addUsuario, deleteUsuario } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Usuario | null>(null);
   const [formData, setFormData] = useState({
@@ -28,7 +28,7 @@ export const Usuarios: React.FC = () => {
       key: 'tipoUsuarioId', 
       label: 'Tipo Usuario',
       render: (value: number) => {
-        const tipo = mockTiposUsuario.find(t => t.id === value);
+        const tipo = tiposUsuario.find(t => t.id === value);
         return tipo ? tipo.descripcion : 'N/A';
       }
     },
@@ -78,22 +78,11 @@ const handleSubmit = (e: React.FormEvent) => {
   }
 
   if (editingItem) {
-    setUsuarios(prev =>
-      prev.map(item =>
-        item.id === editingItem.id
-          ? { ...item, ...formData }
-          : item
-      )
-    );
+    updateUsuario(editingItem.id, formData);
   } else {
-    const newItem: Usuario = {
-      id: Math.max(...usuarios.map(u => u.id)) + 1,
-      ...formData
-    };
-    setUsuarios(prev => [...prev, newItem]);
+    addUsuario(formData);
   }
 
-  // Limpiar formulario y cerrar modal
   setIsModalOpen(false);
   setEditingItem(null);
   setFormData({
@@ -121,7 +110,7 @@ const handleSubmit = (e: React.FormEvent) => {
 
   const handleDelete = (item: Usuario) => {
     if (confirm('¿Está seguro de que desea eliminar este usuario?')) {
-      setUsuarios(prev => prev.filter(u => u.id !== item.id));
+      deleteUsuario(item.id);
     }
   };
 
@@ -205,7 +194,7 @@ const handleSubmit = (e: React.FormEvent) => {
                 required
               >
                 <option value="">Seleccionar Tipo</option>
-                {mockTiposUsuario.filter(t => t.estado).map(tipo => (
+                {tiposUsuario.filter(t => t.estado).map(tipo => (
                   <option key={tipo.id} value={tipo.id}>
                     {tipo.descripcion}
                   </option>

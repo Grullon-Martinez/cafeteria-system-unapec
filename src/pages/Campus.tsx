@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Campus } from '../types';
-import { mockCampus } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const CampusPage: React.FC = () => {
-  const [campus, setCampus] = useState<Campus[]>(mockCampus);
+  const { campus, updateCampus, addCampus, deleteCampus } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Campus | null>(null);
   const [formData, setFormData] = useState({ descripcion: '', estado: true });
@@ -27,17 +27,9 @@ export const CampusPage: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setCampus(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateCampus(editingItem.id, formData);
     } else {
-      const newItem: Campus = {
-        id: Math.max(...campus.map(c => c.id)) + 1,
-        ...formData
-      };
-      setCampus(prev => [...prev, newItem]);
+      addCampus(formData);
     }
     
     setIsModalOpen(false);
@@ -53,7 +45,7 @@ export const CampusPage: React.FC = () => {
 
   const handleDelete = (item: Campus) => {
     if (confirm('¿Está seguro de que desea eliminar este campus?')) {
-      setCampus(prev => prev.filter(c => c.id !== item.id));
+      deleteCampus(item.id);
     }
   };
 

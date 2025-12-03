@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, FileDown } from 'lucide-react';
 import { Table } from '../components/Common/Table';
 import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Factura } from '../types';
-import { mockFacturas, mockEmpleados, mockUsuarios } from '../data/mockData';
+import { useData } from '../context/DataContext';
+import jsPDF from 'jspdf';
 
 export const Facturas: React.FC = () => {
-  const [facturas, setFacturas] = useState<Factura[]>(mockFacturas);
+  const { facturas, facturaArticulos, empleados, usuarios, articulos, addFactura, updateFactura, deleteFactura } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Factura | null>(null);
   const [formData, setFormData] = useState({
@@ -19,13 +20,21 @@ export const Facturas: React.FC = () => {
     estado: true
   });
 
+  const facturasConTotales = useMemo(() => {
+    return facturas.map(factura => {
+      const items = facturaArticulos.filter(fa => fa.facturaId === factura.id);
+      const total = items.reduce((sum, item) => sum + item.monto, 0);
+      return { ...factura, total };
+    });
+  }, [facturas, facturaArticulos]);
+
   const columns = [
     { key: 'id', label: 'ID' },
     { 
       key: 'empleadoId', 
       label: 'Empleado',
       render: (value: number) => {
-        const empleado = mockEmpleados.find(e => e.id === value);
+        const empleado = empleados.find(e => e.id === value);
         return empleado ? empleado.nombre : 'N/A';
       }
     },
@@ -33,7 +42,7 @@ export const Facturas: React.FC = () => {
       key: 'usuarioId', 
       label: 'Usuario',
       render: (value: number) => {
-        const usuario = mockUsuarios.find(u => u.id === value);
+        const usuario = usuarios.find(u => u.id === value);
         return usuario ? usuario.nombre : 'N/A';
       }
     },
@@ -43,6 +52,11 @@ export const Facturas: React.FC = () => {
       render: (value: string) => new Date(value).toLocaleDateString()
     },
     { key: 'comentario', label: 'Comentario' },
+    { 
+      key: 'total', 
+      label: 'Total',
+      render: (value: number) => `RD$ ${value.toFixed(2)}`
+    },
     { 
       key: 'estado', 
       label: 'Estado',
@@ -54,17 +68,9 @@ export const Facturas: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setFacturas(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateFactura(editingItem.id, formData);
     } else {
-      const newItem: Factura = {
-        id: Math.max(...facturas.map(f => f.id)) + 1,
-        ...formData
-      };
-      setFacturas(prev => [...prev, newItem]);
+      addFactura(formData);
     }
     
     setIsModalOpen(false);
@@ -92,8 +98,121 @@ export const Facturas: React.FC = () => {
 
   const handleDelete = (item: Factura) => {
     if (confirm('¿Está seguro de que desea eliminar esta factura?')) {
-      setFacturas(prev => prev.filter(f => f.id !== item.id));
+      deleteFactura(item.id);
     }
+  };
+
+  const exportToPDF = (factura: Factura & { total: number }) => {
+    const doc = new jsPDF();
+    const items = facturaArticulos.filter(fa => fa.facturaId === factura.id);
+    const empleado = empleados.find(e => e.id === factura.empleadoId);
+    const usuario = usuarios.find(u => u.id === factura.usuarioId);
+
+    doc.setFontSize(18);
+    doc.text('FACTURA DE VENTA', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Factura #${factura.id}`, 20, 35);
+    doc.text(`Fecha: ${new Date(factura.fechaVenta).toLocaleDateString()}`, 20, 42);
+    
+    doc.text(`Empleado: ${empleado?.nombre || 'N/A'}`, 20, 52);
+    doc.text(`Cliente: ${usuario?.nombre || 'N/A'}`, 20, 59);
+    
+    if (factura.comentario) {
+      doc.text(`Comentario: ${factura.comentario}`, 20, 69);
+    }
+
+    let yPos = 85;
+    doc.setFontSize(10);
+    doc.text('Detalle de Artículos', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(9);
+    doc.text('Artículo', 20, yPos);
+    doc.text('Cantidad', 100, yPos);
+    doc.text('Monto', 140, yPos);
+    yPos += 8;
+
+    items.forEach(item => {
+      const articulo = articulos.find(a => a.id === item.articuloId);
+      const nombreArticulo = articulo?.descripcion || 'N/A';
+      
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.text(nombreArticulo, 20, yPos);
+      doc.text(item.unidadesVendidas.toString(), 100, yPos);
+      doc.text(`RD$ ${item.monto.toFixed(2)}`, 140, yPos);
+      yPos += 7;
+    });
+
+    yPos += 5;
+    doc.setDrawColor(0, 0, 0);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('TOTAL:', 100, yPos);
+    doc.text(`RD$ ${factura.total.toFixed(2)}`, 140, yPos);
+
+    doc.save(`factura-${factura.id}.pdf`);
+  };
+
+  const exportAllToPDF = () => {
+    const facturasActivas = facturasConTotales.filter(f => f.estado);
+    const doc = new jsPDF();
+    let yPos = 20;
+
+    doc.setFontSize(18);
+    doc.text('REPORTE DE VENTAS', 105, yPos, { align: 'center' });
+    yPos += 15;
+
+    doc.setFontSize(10);
+    doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(9);
+    doc.text('ID', 20, yPos);
+    doc.text('Fecha', 35, yPos);
+    doc.text('Cliente', 60, yPos);
+    doc.text('Empleado', 100, yPos);
+    doc.text('Total', 150, yPos);
+    yPos += 8;
+
+    let totalGeneral = 0;
+    facturasActivas.forEach(factura => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      const usuario = usuarios.find(u => u.id === factura.usuarioId);
+      const empleado = empleados.find(e => e.id === factura.empleadoId);
+
+      doc.text(factura.id.toString(), 20, yPos);
+      doc.text(new Date(factura.fechaVenta).toLocaleDateString(), 35, yPos);
+      doc.text(usuario?.nombre || 'N/A', 60, yPos);
+      doc.text(empleado?.nombre || 'N/A', 100, yPos);
+      doc.text(`RD$ ${factura.total.toFixed(2)}`, 150, yPos);
+      
+      totalGeneral += factura.total;
+      yPos += 7;
+    });
+
+    yPos += 5;
+    doc.setDrawColor(0, 0, 0);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('TOTAL GENERAL:', 100, yPos);
+    doc.text(`RD$ ${totalGeneral.toFixed(2)}`, 150, yPos);
+
+    doc.save(`reporte-ventas-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const openCreateModal = () => {
@@ -115,17 +234,67 @@ export const Facturas: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Facturas</h1>
           <p className="text-gray-600">Gestiona las facturas de ventas</p>
         </div>
-        <Button onClick={openCreateModal}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Factura
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={exportAllToPDF} variant="secondary">
+            <FileDown className="w-4 h-4 mr-2" />
+            Exportar PDF
+          </Button>
+          <Button onClick={openCreateModal}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Factura
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="mb-4 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900">Resumen de Ventas</h2>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Total de Facturas Activas</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {facturasConTotales.filter(f => f.estado).length}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600">Total de Ventas</p>
+            <p className="text-2xl font-bold text-blue-600">
+              RD$ {facturasConTotales.filter(f => f.estado).reduce((sum, f) => sum + f.total, 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600">Promedio por Factura</p>
+            <p className="text-2xl font-bold text-green-600">
+              RD$ {facturasConTotales.filter(f => f.estado).length > 0 
+                ? (facturasConTotales.filter(f => f.estado).reduce((sum, f) => sum + f.total, 0) / facturasConTotales.filter(f => f.estado).length).toFixed(2)
+                : '0.00'}
+            </p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600">Total de Artículos Vendidos</p>
+            <p className="text-2xl font-bold text-purple-600">
+              {facturaArticulos.reduce((sum, fa) => sum + fa.unidadesVendidas, 0)}
+            </p>
+          </div>
+        </div>
       </div>
 
       <Table
         columns={columns}
-        data={facturas}
+        data={facturasConTotales}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        customActions={(item: Factura & { total: number }) => (
+          <Button
+            onClick={() => exportToPDF(item)}
+            variant="secondary"
+            className="text-xs"
+          >
+            <FileDown className="w-3 h-3 mr-1" />
+            PDF
+          </Button>
+        )}
       />
 
       <Modal
@@ -147,7 +316,7 @@ export const Facturas: React.FC = () => {
                 required
               >
                 <option value="">Seleccionar Empleado</option>
-                {mockEmpleados.filter(e => e.estado).map(empleado => (
+                {empleados.filter(e => e.estado).map(empleado => (
                   <option key={empleado.id} value={empleado.id}>
                     {empleado.nombre}
                   </option>
@@ -166,7 +335,7 @@ export const Facturas: React.FC = () => {
                 required
               >
                 <option value="">Seleccionar Usuario</option>
-                {mockUsuarios.filter(u => u.estado).map(usuario => (
+                {usuarios.filter(u => u.estado).map(usuario => (
                   <option key={usuario.id} value={usuario.id}>
                     {usuario.nombre}
                   </option>

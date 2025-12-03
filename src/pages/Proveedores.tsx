@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Proveedor } from '../types';
-import { mockProveedores } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Proveedores: React.FC = () => {
-  const [proveedores, setProveedores] = useState<Proveedor[]>(mockProveedores);
+  const { proveedores, updateProveedor, addProveedor, deleteProveedor } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Proveedor | null>(null);
   const [formData, setFormData] = useState({
@@ -67,29 +67,17 @@ const handleSubmit = (e: React.FormEvent) => {
   }
 
   if (editingItem) {
-    setProveedores(prev =>
-      prev.map(item =>
-        item.id === editingItem.id
-          ? { ...item, ...formData }
-          : item
-      )
-    );
+    updateProveedor(editingItem.id, formData);
   } else {
-    const newItem: Proveedor = {
-      id: Math.max(...proveedores.map(p => p.id)) + 1,
-      ...formData
-    };
-    setProveedores(prev => [...prev, newItem]);
+    addProveedor(formData);
   }
 
-  // Limpiar y cerrar
   setIsModalOpen(false);
   setEditingItem(null);
   setFormData({
-    nombre: '',
+    nombreComercial: '',
     rnc: '',
-    telefono: '',
-    direccion: '',
+    fechaRegistro: '',
     estado: true
   });
 };
@@ -97,7 +85,7 @@ const handleSubmit = (e: React.FormEvent) => {
 
   const handleDelete = (item: Proveedor) => {
     if (confirm('¿Está seguro de que desea eliminar este proveedor?')) {
-      setProveedores(prev => prev.filter(p => p.id !== item.id));
+      deleteProveedor(item.id);
     }
   };
 

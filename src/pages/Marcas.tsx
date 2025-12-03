@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Marca } from '../types';
-import { mockMarcas } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Marcas: React.FC = () => {
-  const [marcas, setMarcas] = useState<Marca[]>(mockMarcas);
+  const { marcas, updateMarca, addMarca, deleteMarca } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Marca | null>(null);
   const [formData, setFormData] = useState({ descripcion: '', estado: true });
@@ -27,17 +27,9 @@ export const Marcas: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setMarcas(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateMarca(editingItem.id, formData);
     } else {
-      const newItem: Marca = {
-        id: Math.max(...marcas.map(m => m.id)) + 1,
-        ...formData
-      };
-      setMarcas(prev => [...prev, newItem]);
+      addMarca(formData);
     }
     
     setIsModalOpen(false);
@@ -53,7 +45,7 @@ export const Marcas: React.FC = () => {
 
   const handleDelete = (item: Marca) => {
     if (confirm('¿Está seguro de que desea eliminar esta marca?')) {
-      setMarcas(prev => prev.filter(m => m.id !== item.id));
+      deleteMarca(item.id);
     }
   };
 

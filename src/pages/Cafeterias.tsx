@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Cafeteria } from '../types';
-import { mockCafeterias, mockCampus } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Cafeterias: React.FC = () => {
-  const [cafeterias, setCafeterias] = useState<Cafeteria[]>(mockCafeterias);
+  const { cafeterias, campus, updateCafeteria, addCafeteria, deleteCafeteria } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Cafeteria | null>(null);
   const [formData, setFormData] = useState({
@@ -25,8 +25,8 @@ export const Cafeterias: React.FC = () => {
       key: 'campusId', 
       label: 'Campus',
       render: (value: number) => {
-        const campus = mockCampus.find(c => c.id === value);
-        return campus ? campus.descripcion : 'N/A';
+        const campusItem = campus.find(c => c.id === value);
+        return campusItem ? campusItem.descripcion : 'N/A';
       }
     },
     { key: 'encargado', label: 'Encargado' },
@@ -41,17 +41,9 @@ export const Cafeterias: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setCafeterias(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateCafeteria(editingItem.id, formData);
     } else {
-      const newItem: Cafeteria = {
-        id: Math.max(...cafeterias.map(c => c.id)) + 1,
-        ...formData
-      };
-      setCafeterias(prev => [...prev, newItem]);
+      addCafeteria(formData);
     }
     
     setIsModalOpen(false);
@@ -72,7 +64,7 @@ export const Cafeterias: React.FC = () => {
 
   const handleDelete = (item: Cafeteria) => {
     if (confirm('¿Está seguro de que desea eliminar esta cafetería?')) {
-      setCafeterias(prev => prev.filter(c => c.id !== item.id));
+      deleteCafeteria(item.id);
     }
   };
 
@@ -133,11 +125,11 @@ export const Cafeterias: React.FC = () => {
               required
             >
               <option value="">Seleccionar Campus</option>
-              {mockCampus.filter(c => c.estado).map(campus => (
-                <option key={campus.id} value={campus.id}>
-                  {campus.descripcion}
-                </option>
-              ))}
+              {campus.filter(c => c.estado).map(campusItem => (
+                  <option key={campusItem.id} value={campusItem.id}>
+                    {campusItem.descripcion}
+                  </option>
+                ))}
             </select>
           </div>
 

@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { TipoUsuario } from '../types';
-import { mockTiposUsuario } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const TiposUsuario: React.FC = () => {
-  const [tiposUsuario, setTiposUsuario] = useState<TipoUsuario[]>(mockTiposUsuario);
+  const { tiposUsuario, updateTipoUsuario, addTipoUsuario, deleteTipoUsuario } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TipoUsuario | null>(null);
   const [formData, setFormData] = useState({ descripcion: '', estado: true });
@@ -27,17 +27,9 @@ export const TiposUsuario: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setTiposUsuario(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateTipoUsuario(editingItem.id, formData);
     } else {
-      const newItem: TipoUsuario = {
-        id: Math.max(...tiposUsuario.map(t => t.id)) + 1,
-        ...formData
-      };
-      setTiposUsuario(prev => [...prev, newItem]);
+      addTipoUsuario(formData);
     }
     
     setIsModalOpen(false);
@@ -53,7 +45,7 @@ export const TiposUsuario: React.FC = () => {
 
   const handleDelete = (item: TipoUsuario) => {
     if (confirm('¿Está seguro de que desea eliminar este tipo de usuario?')) {
-      setTiposUsuario(prev => prev.filter(t => t.id !== item.id));
+      deleteTipoUsuario(item.id);
     }
   };
 

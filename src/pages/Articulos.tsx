@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Articulo } from '../types';
-import { mockArticulos, mockMarcas, mockProveedores } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Articulos: React.FC = () => {
-  const [articulos, setArticulos] = useState<Articulo[]>(mockArticulos);
+  const { articulos, marcas, proveedores, updateArticulo, addArticulo } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Articulo | null>(null);
   const [formData, setFormData] = useState({
@@ -27,7 +27,7 @@ export const Articulos: React.FC = () => {
       key: 'marcaId', 
       label: 'Marca',
       render: (value: number) => {
-        const marca = mockMarcas.find(m => m.id === value);
+        const marca = marcas.find(m => m.id === value);
         return marca ? marca.descripcion : 'N/A';
       }
     },
@@ -40,7 +40,7 @@ export const Articulos: React.FC = () => {
       key: 'proveedorId', 
       label: 'Proveedor',
       render: (value: number) => {
-        const proveedor = mockProveedores.find(p => p.id === value);
+        const proveedor = proveedores.find(p => p.id === value);
         return proveedor ? proveedor.nombreComercial : 'N/A';
       }
     },
@@ -56,17 +56,9 @@ export const Articulos: React.FC = () => {
     e.preventDefault();
     
     if (editingItem) {
-      setArticulos(prev => prev.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData }
-          : item
-      ));
+      updateArticulo(editingItem.id, formData);
     } else {
-      const newItem: Articulo = {
-        id: Math.max(...articulos.map(a => a.id)) + 1,
-        ...formData
-      };
-      setArticulos(prev => [...prev, newItem]);
+      addArticulo(formData);
     }
     
     setIsModalOpen(false);
@@ -96,7 +88,7 @@ export const Articulos: React.FC = () => {
 
   const handleDelete = (item: Articulo) => {
     if (confirm('¿Está seguro de que desea eliminar este artículo?')) {
-      setArticulos(prev => prev.filter(a => a.id !== item.id));
+      updateArticulo(item.id, { estado: false });
     }
   };
 
@@ -165,7 +157,7 @@ export const Articulos: React.FC = () => {
                 required
               >
                 <option value="">Seleccionar Marca</option>
-                {mockMarcas.filter(m => m.estado).map(marca => (
+                {marcas.filter(m => m.estado).map(marca => (
                   <option key={marca.id} value={marca.id}>
                     {marca.descripcion}
                   </option>
@@ -184,7 +176,7 @@ export const Articulos: React.FC = () => {
                 required
               >
                 <option value="">Seleccionar Proveedor</option>
-                {mockProveedores.filter(p => p.estado).map(proveedor => (
+                {proveedores.filter(p => p.estado).map(proveedor => (
                   <option key={proveedor.id} value={proveedor.id}>
                     {proveedor.nombreComercial}
                   </option>

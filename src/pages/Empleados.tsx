@@ -5,10 +5,10 @@ import { Modal } from '../components/Common/Modal';
 import { Button } from '../components/Common/Button';
 import { StatusBadge } from '../components/Common/StatusBadge';
 import { Empleado } from '../types';
-import { mockEmpleados } from '../data/mockData';
+import { useData } from '../context/DataContext';
 
 export const Empleados: React.FC = () => {
-  const [empleados, setEmpleados] = useState<Empleado[]>(mockEmpleados);
+  const { empleados, updateEmpleado, addEmpleado, deleteEmpleado } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Empleado | null>(null);
   const [formData, setFormData] = useState({
@@ -73,22 +73,11 @@ const handleSubmit = (e: React.FormEvent) => {
   }
 
   if (editingItem) {
-    setEmpleados(prev =>
-      prev.map(item =>
-        item.id === editingItem.id
-          ? { ...item, ...formData }
-          : item
-      )
-    );
+    updateEmpleado(editingItem.id, formData);
   } else {
-    const newItem: Empleado = {
-      id: Math.max(...empleados.map(e => e.id)) + 1,
-      ...formData
-    };
-    setEmpleados(prev => [...prev, newItem]);
+    addEmpleado(formData);
   }
 
-  // limpiar y cerrar
   setIsModalOpen(false);
   setEditingItem(null);
   setFormData({
@@ -116,7 +105,7 @@ const handleSubmit = (e: React.FormEvent) => {
 
   const handleDelete = (item: Empleado) => {
     if (confirm('¿Está seguro de que desea eliminar este empleado?')) {
-      setEmpleados(prev => prev.filter(e => e.id !== item.id));
+      deleteEmpleado(item.id);
     }
   };
 
