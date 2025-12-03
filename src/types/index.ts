@@ -68,6 +68,7 @@ export interface Factura {
   usuarioId: number;
   fechaVenta: string;
   comentario: string;
+  total?: number;
   estado: boolean;
 }
 

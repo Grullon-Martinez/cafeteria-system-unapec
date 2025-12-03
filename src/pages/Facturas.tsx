@@ -17,11 +17,16 @@ export const Facturas: React.FC = () => {
     usuarioId: 0,
     fechaVenta: '',
     comentario: '',
+    total: 0,
     estado: true
   });
 
   const facturasConTotales = useMemo(() => {
     return facturas.map(factura => {
+      // Si la factura ya tiene un total, usarlo; si no, calcular desde los artículos
+      if (factura.total !== undefined && factura.total > 0) {
+        return { ...factura, total: factura.total };
+      }
       const items = facturaArticulos.filter(fa => fa.facturaId === factura.id);
       const total = items.reduce((sum, item) => sum + item.monto, 0);
       return { ...factura, total };
@@ -91,6 +96,7 @@ export const Facturas: React.FC = () => {
       usuarioId: item.usuarioId,
       fechaVenta: item.fechaVenta,
       comentario: item.comentario,
+      total: item.total || 0,
       estado: item.estado
     });
     setIsModalOpen(true);
@@ -222,6 +228,7 @@ export const Facturas: React.FC = () => {
       usuarioId: 0,
       fechaVenta: '',
       comentario: '',
+      total: 0,
       estado: true
     });
     setIsModalOpen(true);
@@ -367,6 +374,24 @@ export const Facturas: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Total (RD$)
+            </label>
+            <input
+              type="number"
+              value={formData.total}
+              onChange={(e) => setFormData(prev => ({ ...prev, total: parseFloat(e.target.value) || 0 }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Deje en 0 para calcular automáticamente desde los artículos
+            </p>
           </div>
 
           <div>
